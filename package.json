@@ -1,0 +1,31 @@
+{
+  "name": "css-specificity-limit",
+  "version": "0.1.0",
+  "description": "Analyze css and error when specificity is above threshold",
+  "main": "index.js",
+  "scripts": {
+    "test": "mocha --compilers js:babel/register test/*Test.js"
+  },
+  "author": "Pontus Lundin <lundin.pontus@gmail.com> (https://github.com/hontas)",
+  "license": "ISC",
+  "dependencies": {
+    "bluebird": "^2.10.2",
+    "chalk": "^1.1.1",
+    "glob": "^5.0.15",
+    "lodash": "^3.10.1",
+    "object-assign": "^4.0.1",
+    "optionator": "^0.6.0",
+    "source-map": "^0.5.1",
+    "specificity": "^0.1.4",
+    "watch": "^0.16.0"
+  },
+  "bin": {
+    "css-specificity-limit": "./bin/css-specificity-limit.js"
+  },
+  "devDependencies": {
+    "babel": "^5.8.23",
+    "chai": "^3.3.0",
+    "sinon": "^1.17.1",
+    "sinon-chai": "^2.8.0"
+  }
+}

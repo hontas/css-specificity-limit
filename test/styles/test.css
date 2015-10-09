@@ -1,0 +1,31 @@
+html #home-page header#banner .site-nav > ul li a {
+  color: blue;
+}
+
+#what-up #lol-ok #hmm > #still-going #last-id .cool-classes .um-wow .really + div a {
+  color: blue;
+}
+
+ul#nav li.active a {
+    position: absolute;
+}
+
+li:last-child h2 .title,
+li:first-child h2 .title {
+    width: 100px;
+    height: 50px;
+}
+
+ul > li, .nav,
+#nav .selected > a:hover {
+    visibility: hidden;
+}
+
+@media (min-width:768px) {
+    #media .selected > a:hover {
+        visibility: hidden;
+    }
+    .test {
+        visibility: visible;
+    }
+}

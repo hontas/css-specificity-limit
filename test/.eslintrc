@@ -1,0 +1,8 @@
+{
+    "env": {
+        "es6": true
+        },
+    "rules": {
+        "no-unused-expressions": 0
+    }
+}
