@@ -2,7 +2,7 @@ css-specificity-limit
 =====================
 > CSS selectors specificity analyzer
 
-![example screen shot](css-spec-limit.png "example screen shot")
+![example screen shot](https://raw.githubusercontent.com/hontas/css-specificity-limit/master/css-spec-limit-min.png "example screen shot")
 
 ## Install
 
@@ -26,29 +26,28 @@ css-specificity-limit --limit 50 styles/**/*.css
 
 ```js
 var cssSpecificityLimit = require('css-specificity-limit');
-cssSpecificityLimit({
+var options = {
     limit: 100,
-    files: 'test/*.css'
-});
-```
+    files: 'styles/**/*.css'
+};
 
-### options
-- **limit** {Number}
-- **basePath** {String} base path for relative file paths. Default: current working directory
-- **files** {String} path to file/files. Support glob paths
-- **matchers** {Array} Custom matchers to calculate score
-- **reporter** {Function} Custom error reporter
+cssSpecificityLimit(options, function(error, results) {});
 
-Use either *callback* or *then/catch*
-```js
-cssSpecificityLimit(options, function(error, result) {});
-//or
+// or
+
 cssSpecificityLimit(options)
-    .then(function(result) {})
+    .then(function(results) {})
     .catch(function(error) {});
 ```
 
-### result array
+### options
+- **limit** {Number} CSS selector score limit. *Default*: `100`
+- **files** {String} Path to file/files. Supports glob pattern. *Required*
+- **basePath** {String} For relative file paths. *Default*: `process.cwd()`
+- **matchers** {Array} Custom matchers to calculate score
+- **reporter** {Function} Custom error reporter
+
+### results array
 Array of files containing selectors that were scored higher than the limit
 
 ```js
@@ -91,18 +90,18 @@ cssSpecificityLimit({
 This will multiply the number of matches with the factor and add it to the score.
 
 ## Custom reporter
-Write your own reporter. Gets the result array described above. Will not be called in silent mode.
+Write your own reporter. Gets the results array described above. Will not be called in silent mode.
 ```js
 cssSpecificityLimit({
     reporter: function(results) {
-        // do whatever you like
+        // your own reporting
     }
 });
 ```
 
 
 ## Less / Sass / Stylus
-Just make sure the the parser you need is installed and the css-specificity-limit takes care of the rest.
+Just make sure the the parser you need is installed and `css-specificity-limit` takes care of the rest.
 
 ### parsers
 - Less `npm install less --save-dev`
@@ -114,4 +113,3 @@ Just make sure the the parser you need is installed and the css-specificity-limi
 - add support for !important
 - add loggger
 - use streams
-- add your own reporter

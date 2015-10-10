@@ -19,7 +19,7 @@ args = assign(userArgs, {
 });
 delete args._;
 
-if (userArgs.help) {
+if (userArgs.help || userArgs.files.length === 0) {
     return console.log(options.generateHelp());
 }
 

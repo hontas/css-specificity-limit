@@ -19,16 +19,19 @@ function invoke(options = {}, callback) {
     }, options), callback);
 }
 
-function expectArrayOfLength(length) {
-    return function(result) {
-        expect(result).to.be.an('array');
-        expect(result).to.have.length(length);
+function expectResultsArrayOfLength(lengths) {
+    return function(results) {
+        expect(results).to.be.an('array');
+        results.forEach((item, idx) => {
+            expect(item.file).to.be.a('string');
+            expect(item.result).to.be.an('array');
+            expect(item.result).to.have.length(lengths[idx]);
+        });
     };
 }
 
-function expectEmptyArray(result) {
-    expect(result).to.be.an('array');
-    expect(result).to.be.empty;
+function expectEmptyResultsArray(results) {
+    return expectResultsArrayOfLength([0])(results);
 }
 
 function rethrow(error) {
@@ -69,24 +72,40 @@ describe('JavaScript API', () => {
     describe('simple invokation with high limit', () => {
         it('should return empty array', () => {
             return invoke()
-                .then(expectEmptyArray)
+                .then(expectEmptyResultsArray)
                 .catch(rethrow);
         });
 
         it('should return empty array in callback', (done) => {
-            invoke({}, function(error, result) {
+            invoke({}, asyncTestHelper(done, function(error, result) {
                 expect(error).to.be.null;
-                expectEmptyArray(result);
+                expectEmptyResultsArray(result);
                 done();
-            });
+            }));
         });
     });
 
     describe('file globbing pattern', () => {
         it('should handle glob pattern', () => {
             return invoke({ files: 'styles/*t.css' })
-                .then(expectEmptyArray)
+                .then(expectEmptyResultsArray)
                 .catch(rethrow);
+        });
+    });
+
+    describe('files options not set', function() {
+        it('should call callback with error', function(done) {
+            invoke({ files: '' }, asyncTestHelper(done, function(error) {
+                expect(error.cause).to.equal('Required option \'files\' not set');
+                done();
+            }));
+        });
+
+        it('should call callback with error', function(done) {
+            invoke({ files: [] }, asyncTestHelper(done, function(error) {
+                expect(error.cause).to.equal('Required option \'files\' not set');
+                done();
+            }));
         });
     });
 
@@ -107,18 +126,20 @@ describe('JavaScript API', () => {
     });
 
     describe('unknown file format', () => {
+        var matcher = /File\ format\ not\ supported\:\ txt\ \([\/\w\-]+test\.txt\)/i;
+
         it('should reject with error', () => {
             return invoke({ files: 'styles/test.txt' })
                 .then(rethrow)
                 .catch((error) => {
-                    expect(error.cause).to.match(/File\ format\ not\ supported\:\ \.txt\ \([\/\w\-]+test\.txt\)/i);
+                    expect(error.cause).to.match(matcher);
                 });
         });
 
         it('should call callback with error', (done) => {
             invoke({
                 files: 'styles/test.txt'
-            }, expectCallbackError(/File\ format\ not\ supported\:\ \.txt\ \([\/\w\-]+test\.txt\)/i, done));
+            }, expectCallbackError(matcher, done));
         });
     });
 
@@ -126,7 +147,7 @@ describe('JavaScript API', () => {
         describe('limit', () => {
             it('should set the treshold value', () => {
                 return invoke({ limit: 10 })
-                    .then(expectArrayOfLength(1))
+                    .then(expectResultsArrayOfLength([7]))
                     .catch(rethrow);
             });
         });
@@ -137,7 +158,7 @@ describe('JavaScript API', () => {
                     basePath: path.resolve(__dirname, '../'),
                     files: 'test/styles/test.css'
                 })
-                    .then(expectEmptyArray)
+                    .then(expectEmptyResultsArray)
                     .catch(rethrow);
             });
         });
@@ -151,12 +172,11 @@ describe('JavaScript API', () => {
                 console.log.restore();
             });
 
-            it('should not print result in silent mode', () => {
-                return invoke()
-                    .then(() => {
-                        expect(console.log).to.not.have.been.called;
-                    })
-                    .catch(rethrow);
+            it('should not print result in silent mode', (done) => {
+                invoke({ logLevel: 'none' }, asyncTestHelper(done, () => {
+                    expect(console.log).to.have.callCount(0);
+                    done();
+                }));
             });
 
             it('should print result', () => {
@@ -274,7 +294,7 @@ describe('JavaScript API', () => {
             invoke({}, asyncTestHelper(done, function(error, results) {
                 expect(error).to.be.null;
                 expect(results).to.be.an('array');
-                expect(results).to.be.empty;
+                expectEmptyResultsArray(results);
                 done();
             }));
         });
@@ -289,7 +309,6 @@ describe('JavaScript API', () => {
                 expect(results).to.be.an('array');
                 expect(results).to.have.length(1);
                 expect(res).to.be.an('object');
-                console.log(res);
                 expect(res.file).to.match(/test\/styles\/test\.css/);
                 expect(res.result).to.be.an('array');
                 expect(res.result).to.have.length(4);

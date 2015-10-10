@@ -11,6 +11,7 @@ var sourceMap = require('source-map');
 var cleaner = require('./lib/cleaner');
 var lineNumbers = require('./lib/lineNumbers');
 var utils = require('./lib/utils');
+var logger = require('./lib/logger');
 var fileReaderFactory = require('./lib/fileReader');
 var log = utils.log;
 
@@ -23,27 +24,32 @@ module.exports = function(opts, callback) {
         reporter: './lib/reporter',
         silent: false,
         watch: false,
+        debug: false,
         less: {},
+        sass: {},
         stylus: {},
-        sass: {}
+        logLevel: 'none'
     };
 
     var options = assign({}, defaults, opts);
-    var fileReader = fileReaderFactory(options);
+    var fileReader;
 
     function getFullFilePaths() {
+        logger.trace('#getFullFilepaths');
+
         var files = options.files,
             basePath = options.basePath;
 
         function getPath(file) {
-            return path.join(basePath, file);
+            return glob(path.join(basePath, file));
         }
 
         if (_.isArray(files)) {
-            return files.map(getPath);
+            return Promise.all(files.map(getPath))
+                .then(utils.flatten);
         }
 
-        return glob(getPath(files));
+        return getPath(files);
     }
 
     function calculateSpecificity(line) {
@@ -114,14 +120,14 @@ module.exports = function(opts, callback) {
     }
 
     function calculateCssScore(files) {
-        return files
-            .map(calculate)
-            .filter(function(item) {
-                return item.result.length;
-            });
+        logger.trace('#calculateCssScore');
+
+        return files.map(calculate);
     }
 
     function reportErrors(results) {
+        logger.trace('#reportErrors');
+
         if (options.silent) {
             return results;
         }
@@ -136,38 +142,53 @@ module.exports = function(opts, callback) {
     }
 
     function readFiles(files) {
+        logger.trace('#readFiles');
+
+        if (!_.isArray(files)) {
+            utils.throwError('Argument to readFiles must be of type: Array');
+        }
+
         if (files.length === 0) {
-            utils.createError('No files matched');
+            utils.throwError('No files matched');
         }
 
         return Promise.all(files.map(fileReader));
     }
 
-    function run(filePathsArray) {
-        return new Promise(function(resolve, reject) {
-            Promise.resolve(filePathsArray)
-                .then(readFiles)
-                .then(calculateCssScore)
-                .then(reportErrors)
-                .then(function(result) {
-                    if (options.watch) {
-                        return;
-                    }
+    function errorHandler(error) {
+        logger.trace('#errorHandler');
 
-                    if (_.isFunction(callback)) {
-                        callback(null, result);
-                    } else {
-                        resolve(result);
-                    }
-                })
-                .catch(function(error) {
-                    if (_.isFunction(callback)) {
-                        callback(error);
-                    } else {
-                        reject(error);
-                    }
-                });
-        });
+        var msg = error.cause || error.toString();
+        logger.error(msg);
+
+        if (options.watch) {
+            log(msg);
+        } else if (_.isFunction(callback)) {
+            callback(error);
+        } else {
+            return Promise.reject(error);
+        }
+    }
+
+    function successHandler(result) {
+        logger.trace('Completed run');
+
+        if (_.isFunction(callback)) {
+            callback(null, result);
+        } else {
+            return result;
+        }
+    }
+
+    function run(filePathsPromise) {
+        logger.trace('#run');
+
+        return Promise.resolve(filePathsPromise)
+            .then(readFiles)
+            .then(calculateCssScore)
+            .then(reportErrors)
+            .then(successHandler)
+            .catch(errorHandler);
     }
 
     function onChangeCreate(filePath, event, filename) {
@@ -175,18 +196,43 @@ module.exports = function(opts, callback) {
             log('%s %sd', filename, event);
         }
 
-        run(filePath);
+        run([filePath]);
+    }
+
+    function initiateWatch(filePaths) {
+        logger.trace('#initiateWatch');
+
+        if (options.watch) {
+            var dir = filePaths.reduce(function(lastDir, curr) {
+                var currDir = path.dirname(curr);
+                if (lastDir) {
+                    return currDir.length < lastDir.length ? currDir : lastDir;
+                }
+
+                return currDir;
+            }, '');
+
+            // watch dir and rerun for file on change or create
+            utils.watch(dir, onChangeCreate);
+        }
+
+        return filePaths;
     }
 
     function init() {
-        var filePaths = getFullFilePaths();
+        logger.setLevel(options.debug ? 'trace' : options.logLevel);
+        logger.trace('#init');
 
-        if (options.watch) {
-            // watch dir and rerun for file on change or create
-            utils.watch(path.dirname(filePaths[0]), onChangeCreate);
+        if (!options.files || options.files.length === 0) {
+            return errorHandler(utils.createError('Required option \'files\' not set'));
         }
 
-        return run(filePaths);
+        fileReader = fileReaderFactory(options);
+
+        return getFullFilePaths()
+            .catch(errorHandler)
+            .then(initiateWatch)
+            .then(run);
     }
 
     return init();
